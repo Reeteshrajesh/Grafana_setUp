@@ -1,4 +1,4 @@
-#1
+# 1
 ## 📘 Grafana Google OAuth + Role-Based Access Control (RBAC)
 
 > Secure your Grafana dashboard with Google OAuth login and assign roles (Admin, Editor, Viewer) based on the user's email domain.
@@ -196,7 +196,7 @@ With this setup:
 -------------
 -----------------
 ---------------
-#2
+# 2
 ## 🛠️ Manual Role Assignment in Grafana (Disable Role Sync)
 
 In some cases, you may want to **manually manage user roles** (Admin, Editor, Viewer) directly from the Grafana UI instead of assigning them automatically via OAuth login.
