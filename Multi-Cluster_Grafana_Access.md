@@ -1,6 +1,6 @@
 # Multi-Cluster Grafana Access Setup with AWS ALB Ingress Controller and Istio
 
-This guide provides step-by-step instructions on setting up **multi-cluster Grafana access** using a **single URL** (`activity.v2.liquide.life`) for **dev**, **prod**, and **analytics** environments. The setup uses **AWS ALB Ingress Controller** for routing traffic to multiple Kubernetes clusters and **Istio** for cross-cluster communication. **AWS ACM certificate** is used for **SSL termination**.
+This guide provides step-by-step instructions on setting up **multi-cluster Grafana access** using a **single URL** (`grafana.v2.example.live`) for **dev**, **prod**, and **analytics** environments. The setup uses **AWS ALB Ingress Controller** for routing traffic to multiple Kubernetes clusters and **Istio** for cross-cluster communication. **AWS ACM certificate** is used for **SSL termination**.
 
 ### **Objective**
 
@@ -114,7 +114,7 @@ spec:
       name: https
       protocol: HTTPS
     hosts:
-    - "activity.v2.liquide.life"
+    - "grafana.v2.example.live"
     tls:
       mode: SIMPLE
       credentialName: grafana-tls  # ACM certificate stored as a Kubernetes secret
@@ -135,7 +135,7 @@ metadata:
   namespace: default
 spec:
   hosts:
-  - "activity.v2.liquide.life"
+  - "grafana.v2.example.live"
   http:
   - match:
     - uri:
@@ -219,12 +219,12 @@ The **prod cluster** is the entry point, and the **ALB** created by the **AWS AL
    ```
 
 2. **Update DNS**:
-   In your DNS provider (e.g., Route 53), create a record for **`activity.v2.liquide.life`** and point it to the **ALB's DNS name**.
+   In your DNS provider (e.g., Route 53), create a record for **`grafana.v2.example.live`** and point it to the **ALB's DNS name**.
 
    Example:
 
    ```text
-   activity.v2.liquide.life -> activity-v2-liquide-life-abcde.elb.amazonaws.com
+   grafana.v2.example.live -> activity-v2-liquide-life-abcde.elb.amazonaws.com
    ```
 
 ---
@@ -235,9 +235,9 @@ Once everything is deployed and DNS is configured, verify that the routing is wo
 
 1. **Test each environment**:
 
-   * `https://activity.v2.liquide.life/analytics` → Should route to the **Grafana Analytics** instance.
-   * `https://activity.v2.liquide.life/dev` → Should route to the **Grafana Dev** instance.
-   * `https://activity.v2.liquide.life/prod` → Should route to the **Grafana Prod** instance.
+   * `https://grafana.v2.example.live/analytics` → Should route to the **Grafana Analytics** instance.
+   * `https://grafana.v2.example.live/dev` → Should route to the **Grafana Dev** instance.
+   * `https://grafana.v2.example.live/prod` → Should route to the **Grafana Prod** instance.
 
 2. **Verify SSL/TLS**:
 
@@ -259,7 +259,7 @@ Once everything is deployed and DNS is configured, verify that the routing is wo
 
 ### **Summary**
 
-* **Single URL**: `activity.v2.liquide.life` is used for accessing all three Grafana instances across dev, prod, and analytics.
+* **Single URL**: `grafana.v2.example.live` is used for accessing all three Grafana instances across dev, prod, and analytics.
 * **AWS ALB** in **prod cluster** routes traffic to different services (Grafana) in other clusters based on paths (`/dev`, `/prod`, `/analytics`).
 * **SSL/TLS termination** is handled by **AWS ACM certificates**.
 * **Istio** handles cross-cluster routing, ensuring traffic is directed to the appropriate cluster.
