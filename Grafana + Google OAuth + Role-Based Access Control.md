@@ -1,3 +1,4 @@
+#1
 ## 📘 Grafana Google OAuth + Role-Based Access Control (RBAC)
 
 > Secure your Grafana dashboard with Google OAuth login and assign roles (Admin, Editor, Viewer) based on the user's email domain.
@@ -190,3 +191,77 @@ With this setup:
 * 🔐 Only your team can access Grafana
 * 🧑‍💻 Roles are auto-assigned on login
 * ✅ Uses secure Google OAuth login
+
+
+-------------
+-----------------
+---------------
+#2
+## 🛠️ Manual Role Assignment in Grafana (Disable Role Sync)
+
+In some cases, you may want to **manually manage user roles** (Admin, Editor, Viewer) directly from the Grafana UI instead of assigning them automatically via OAuth login.
+
+### 🔍 Problem:
+
+By default, Grafana's `role_attribute_path` automatically assigns roles at login, based on user email or attributes. This makes it impossible to change roles from the Grafana UI, as roles get overwritten on each login.
+
+---
+
+### ✅ Solution: Disable Role Sync
+
+To allow **manual role management**, update the `grafana.ini` section in your Helm `values.yaml` like this:
+
+```yaml
+grafana:
+  grafana.ini:
+    server:
+      root_url: "https://grafana-analytics.example.xyz"
+      serve_from_sub_path: false
+
+    auth.generic_oauth:
+      enabled: true
+      name: Google
+      allow_sign_up: true
+      client_id: <your-client-id>
+      client_secret: <your-client-secret>
+      scopes: openid profile email
+      auth_url: https://accounts.google.com/o/oauth2/auth
+      token_url: https://oauth2.googleapis.com/token
+      api_url: https://www.googleapis.com/oauth2/v3/userinfo
+      use_refresh_token: true
+      auto_login: false
+      email_attribute_path: email
+      allowed_domains: xyz.abc
+
+      # ✅ Disable role sync for manual UI-based role control
+      skip_org_role_sync: true
+      allow_assign_grafana_admin: true  # Optional: allows manual admin assignment
+```
+
+> 🔁 **Note**: Remove or comment out any existing `role_attribute_path` setting when using this approach.
+
+---
+
+### 👤 Manual Role Assignment Steps
+
+1. Deploy or upgrade your Grafana Helm chart:
+
+   ```bash
+   helm upgrade --install loki grafana/loki-stack -f values.yaml -n monitoring
+   ```
+
+2. Login via Google OAuth using any email from the allowed domain (e.g., `@xyz.abc`).
+
+3. In Grafana:
+
+   * Go to **Administration → Users**
+   * Select the user
+   * Change their role to **Admin**, **Editor**, or **Viewer**
+
+---
+
+### 🎯 Benefit
+
+This method gives you full control over role assignment without editing the Helm config or redeploying each time a user’s role changes.
+
+
