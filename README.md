@@ -442,11 +442,11 @@ metadata:
   name: grafana-ingress
   namespace: default
   annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:region:account-id:certificate/certificate-id
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/scheme: internet-facing
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   rules:
   - host: Reetesh.example.com
@@ -456,9 +456,9 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: loki-grafana
+            name: loki-grafana # service name
             port:
-              number: 3000
+              number: 80  # (port not target port)
 ```
 
 ### **Key Points**:
