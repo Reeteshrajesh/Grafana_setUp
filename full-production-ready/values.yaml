@@ -1,0 +1,206 @@
+test_pod:
+  enabled: true
+  image: bats/bats:1.8.2
+  pullPolicy: IfNotPresent
+
+loki:
+  enabled: true
+  isDefault: true
+  image:
+    repository: grafana/loki
+    tag: "2.8.10"
+  url: http://{{(include "loki.serviceName" .)}}:{{ .Values.loki.service.port }}
+  readinessProbe:
+    httpGet:
+      path: /ready
+      port: http-metrics
+    initialDelaySeconds: 45
+  livenessProbe:
+    httpGet:
+      path: /ready
+      port: http-metrics
+    initialDelaySeconds: 45
+  datasource:
+    jsonData: "{}"
+    uid: ""
+
+  # ✅ Persist data to disk to avoid read-only errors
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    accessModes:
+      - ReadWriteOnce
+    size: 50Gi
+    mountPath: /data  # 💡 This makes /loki writable
+  securityContext:
+    readOnlyRootFilesystem: false
+
+  config:
+    schema_config:
+      configs:
+        - from: 2021-01-01
+          store: boltdb-shipper
+          object_store: s3
+          schema: v12
+          index:
+            prefix: index_
+            period: 24h
+
+    storage_config:
+      aws:
+        s3: https://s3.ap-south-1.amazonaws.com/<bucket-name>
+        s3forcepathstyle: true
+        region: ap-south-1 #aws region
+        access_key_id: <access_key>
+        secret_access_key: <secret_access_key>
+        insecure: false
+      boltdb_shipper:
+        active_index_directory: /data/index
+        cache_location: /data/cache
+        shared_store: s3
+
+    compactor:
+      working_directory: /data/compactor
+      shared_store: s3
+
+
+promtail:
+  enabled: true
+  config:
+    logLevel: info
+    serverPort: 3101
+    clients:
+      - url: http://{{ .Release.Name }}:3100/loki/api/v1/push
+        tenant_id: my-tenant
+
+fluent-bit:
+  enabled: false
+
+grafana:
+  enabled: true
+
+  image:
+    tag: latest
+
+  persistence:
+    enabled: true
+    size: 50Gi
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: gp3
+
+  env:
+    GF_SERVER_ROOT_URL: "https://base-url"  # Required for redirect & URL generation
+    GF_LOG_LEVEL: "debug"
+    GF_AUTH_GENERIC_OAUTH_LOGGING: true
+
+  grafana.ini:
+    server:
+      root_url: "https://base-url"
+      serve_from_sub_path: false
+
+    auth.generic_oauth:
+      enabled: true
+      name: Google
+      allow_sign_up: true
+      client_id: <from googlr developer console>
+      client_secret: <from googlr developer console>
+      scopes: openid profile email
+      auth_url: https://accounts.google.com/o/oauth2/auth
+      token_url: https://oauth2.googleapis.com/token
+      api_url: https://www.googleapis.com/oauth2/v3/userinfo
+      use_refresh_token: true
+      auto_login: false
+      email_attribute_path: email
+      allowed_domains: @xyz.rok(whatever you want)
+      skip_org_role_sync: true
+      allow_assign_grafana_admin: true
+    smtp:
+      enabled: true
+      host: email-smtp.ap-south-1.amazonaws.com:587
+      user: <from aws or email>
+      password: <from aws or email>  # Use App Password if Gmail
+      from_address: <Email jisase bhejana chahte ho>
+      from_name: "Reetesh Grafana Alerts"
+      skip_verify: false
+      startTLS_policy: "OpportunisticStartTLS"
+    emails:
+      welcome_email_on_sign_up: true
+
+  sidecar:
+    datasources:
+      enabled: true
+      label: ""
+      labelValue: ""
+      maxLines: 1000
+      enableLogVolume: true
+
+
+prometheus:
+  enabled: true
+  isDefault: false
+  url: http://{{ include "prometheus.fullname" .}}:{{ .Values.prometheus.server.service.servicePort }}{{ .Values.prometheus.server.prefixURL }}
+  datasource:
+    jsonData: "{}"
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    accessModes:
+      - ReadWriteOnce
+    size: 50Gi  # Adjust storage for production
+    mountPath: /prometheus
+
+filebeat:
+  enabled: false
+  filebeatConfig:
+    filebeat.yml: |
+      # logging.level: debug
+      filebeat.inputs:
+      - type: container
+        paths:
+          - /var/log/containers/*.log
+        processors:
+        - add_kubernetes_metadata:
+            host: ${NODE_NAME}
+            matchers:
+            - logs_path:
+                logs_path: "/var/log/containers/"
+      output.logstash:
+        hosts: ["logstash-loki:5044"]
+
+logstash:
+  enabled: false
+  image: grafana/logstash-output-loki
+  imageTag: 1.0.1
+  filters:
+    main: |-
+      filter {
+        if [kubernetes] {
+          mutate {
+            add_field => {
+              "container_name" => "%{[kubernetes][container][name]}"
+              "namespace" => "%{[kubernetes][namespace]}"
+              "pod" => "%{[kubernetes][pod][name]}"
+            }
+            replace => { "host" => "%{[kubernetes][node][name]}"}
+          }
+        }
+        mutate {
+          remove_field => ["tags"]
+        }
+      }
+  outputs:
+    main: |-
+      output {
+        loki {
+          url => "http://loki:3100/loki/api/v1/push"
+          #username => "test"
+          #password => "test"
+        }
+        # stdout { codec => rubydebug }
+      }
+
+proxy:
+  http_proxy: ""
+  https_proxy: ""
+  no_proxy: ""
